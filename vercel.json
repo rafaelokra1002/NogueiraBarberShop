@@ -2,20 +2,13 @@
   "buildCommand": null,
   "outputDirectory": "dist",
   "rewrites": [
-    { "source": "/api/:path*", "destination": "http://131.196.197.21:3007/api/:path*" },
-    { "source": "/services/:path*", "destination": "http://131.196.197.21:3007/services/:path*" },
-    { "source": "/clients/:path*", "destination": "http://131.196.197.21:3007/clients/:path*" },
-    { "source": "/appointments/:path*", "destination": "http://131.196.197.21:3007/appointments/:path*" },
-    { "source": "/whatsapp/:path*", "destination": "http://131.196.197.21:3007/whatsapp/:path*" },
-    { "source": "/settings/:path*", "destination": "http://131.196.197.21:3007/settings/:path*" }
-  ],
-  "headers": [
     {
-      "source": "/(.*)",
-      "headers": [
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "X-Frame-Options", "value": "DENY" }
-      ]
+      "source": "/api/:path*",
+      "destination": "http://131.196.197.21:8081/api/:path*"
+    },
+    {
+      "source": "/((?!api).*)",
+      "destination": "/index.html"
     }
   ]
 }
