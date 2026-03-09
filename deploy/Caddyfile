@@ -1,0 +1,16 @@
+nogueirabarbershop.shop, www.nogueirabarbershop.shop {
+  encode gzip
+  # Redirect HTTP->HTTPS is automatic if Caddy also listens on :80
+
+  @api path /api* /services* /clients* /appointments* /whatsapp* /settings*
+  handle @api {
+    reverse_proxy 127.0.0.1:3007
+  }
+
+  # Redirect www to apex
+  @wwwHost host www.nogueirabarbershop.shop
+  redir @wwwHost https://nogueirabarbershop.shop{uri}
+
+  # Everything else serves the SPA from the Node app which already serves /dist
+  reverse_proxy 127.0.0.1:3007
+}
