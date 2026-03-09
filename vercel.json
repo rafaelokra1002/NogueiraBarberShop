@@ -1,0 +1,21 @@
+{
+  "buildCommand": null,
+  "outputDirectory": "dist",
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "https://nogueirabarbershop.shop/api/:path*" },
+    { "source": "/services/:path*", "destination": "https://nogueirabarbershop.shop/services/:path*" },
+    { "source": "/clients/:path*", "destination": "https://nogueirabarbershop.shop/clients/:path*" },
+    { "source": "/appointments/:path*", "destination": "https://nogueirabarbershop.shop/appointments/:path*" },
+    { "source": "/whatsapp/:path*", "destination": "https://nogueirabarbershop.shop/whatsapp/:path*" },
+    { "source": "/settings/:path*", "destination": "https://nogueirabarbershop.shop/settings/:path*" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "DENY" }
+      ]
+    }
+  ]
+}
