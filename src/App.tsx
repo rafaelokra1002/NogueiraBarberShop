@@ -15,6 +15,7 @@ import Clients from './components/admin/Clients';
 import Services from './components/admin/Services';
 import Schedule from './components/admin/Schedule';
 import Appointments from './components/admin/Appointments';
+import Barbers from './components/admin/Barbers';
 
 function ProtectedRoute({ children }: { children: React.ReactElement }) {
   const { isAuthenticated } = useAuthStore();
@@ -178,6 +179,16 @@ function App() {
             <ProtectedRoute>
               <AdminLayout>
                 <Services />
+              </AdminLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/barbers"
+          element={
+            <ProtectedRoute>
+              <AdminLayout>
+                <Barbers />
               </AdminLayout>
             </ProtectedRoute>
           }

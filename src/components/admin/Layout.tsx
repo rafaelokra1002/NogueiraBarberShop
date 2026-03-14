@@ -11,7 +11,8 @@ import {
   Menu,
   X,
   TrendingUp,
-  Scissors
+  Scissors,
+  UserPlus
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 
@@ -33,6 +34,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { icon: Clock, label: 'Horários', path: '/admin/schedule' },
     { icon: DollarSign, label: 'Financeiro', path: '/admin/financial' },
     { icon: Scissors, label: 'Serviços', path: '/admin/services' },
+    { icon: UserPlus, label: 'Barbeiros', path: '/admin/barbers' },
     { icon: Settings, label: 'Configurações', path: '/admin/settings' },
   ];
 

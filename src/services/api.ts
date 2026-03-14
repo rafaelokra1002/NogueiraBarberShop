@@ -17,6 +17,12 @@ export type Service = {
   isActive?: boolean;
 };
 
+export type Barber = {
+  id: string;
+  name: string;
+  email: string;
+};
+
 type Client = {
   id: string;
   name: string;
@@ -93,6 +99,11 @@ let closedDaysServiceImpl: {
 let transactionServiceImpl: {
   getAll(): Promise<Transaction[]>;
   create(data: { description: string; amount: number; category: string; date: Date; type: 'income' | 'expense' }): Promise<Transaction>;
+  delete(id: string): Promise<{ ok: true }>;
+};
+let barberServiceImpl: {
+  getAll(): Promise<Barber[]>;
+  create(data: { name: string; email: string; password: string }): Promise<Barber>;
   delete(id: string): Promise<{ ok: true }>;
 };
 
@@ -262,6 +273,31 @@ if (isBrowser) {
       return { ok: true as const };
     },
   };
+
+  barberServiceImpl = {
+    async getAll() {
+      const res = await fetch(`${base}/barbers`);
+      if (!res.ok) throw new Error('Erro ao carregar barbeiros');
+      return res.json();
+    },
+    async create(data: { name: string; email: string; password: string }) {
+      const res = await fetch(`${base}/barbers`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: 'Erro ao criar barbeiro' }));
+        throw new Error(err.message);
+      }
+      return res.json();
+    },
+    async delete(id: string) {
+      const res = await fetch(`${base}/barbers/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Erro ao remover barbeiro');
+      return { ok: true as const };
+    },
+  };
 } else {
   // ========================= SERVER (Node) =========================
   // Use dynamic imports inside functions to avoid bundling in the browser.
@@ -423,6 +459,31 @@ if (isBrowser) {
       return { ok: true } as const;
     }
   };
+
+  barberServiceImpl = {
+    async getAll() {
+      const { prisma } = await import('../lib/prisma');
+      return prisma.user.findMany({
+        where: { role: 'BARBER' },
+        select: { id: true, name: true, email: true },
+        orderBy: { name: 'asc' }
+      }) as any;
+    },
+    async create(data: { name: string; email: string; password: string }) {
+      const { prisma } = await import('../lib/prisma');
+      const bcrypt = await import('bcryptjs');
+      const hashed = await bcrypt.hash(data.password, 10);
+      return prisma.user.create({
+        data: { name: data.name, email: data.email, password: hashed, role: 'BARBER' },
+        select: { id: true, name: true, email: true }
+      }) as any;
+    },
+    async delete(id: string) {
+      const { prisma } = await import('../lib/prisma');
+      await prisma.user.delete({ where: { id } });
+      return { ok: true } as const;
+    }
+  };
 }
 
 // Top-level exports
@@ -433,3 +494,4 @@ export const appointmentService = appointmentServiceImpl;
 export const businessService = businessServiceImpl;
 export const closedDaysService = closedDaysServiceImpl;
 export const transactionService = transactionServiceImpl;
+export const barberService = barberServiceImpl;

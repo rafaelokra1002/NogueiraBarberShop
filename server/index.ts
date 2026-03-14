@@ -55,6 +55,53 @@ app.delete('/api/services/:id', async (req, res) => {
   res.json(s);
 });
 
+// Barbers (users with role BARBER)
+app.get('/api/barbers', async (_req, res) => {
+  try {
+    const barbers = await prisma.user.findMany({
+      where: { role: 'BARBER' },
+      select: { id: true, name: true, email: true },
+      orderBy: { name: 'asc' }
+    });
+    res.json(barbers);
+  } catch (e) {
+    console.error('[barbers:list] error', e);
+    res.status(500).json({ message: 'Erro ao listar barbeiros' });
+  }
+});
+
+app.post('/api/barbers', async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: 'Nome, email e senha são obrigatórios.' });
+    }
+    const bcrypt = await import('bcryptjs');
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const barber = await prisma.user.create({
+      data: { name, email, password: hashedPassword, role: 'BARBER' },
+      select: { id: true, name: true, email: true }
+    });
+    res.json(barber);
+  } catch (e: any) {
+    if (e?.code === 'P2002') {
+      return res.status(409).json({ message: 'Email já cadastrado.' });
+    }
+    console.error('[barbers:create] error', e);
+    res.status(500).json({ message: 'Erro ao criar barbeiro' });
+  }
+});
+
+app.delete('/api/barbers/:id', async (req, res) => {
+  try {
+    await prisma.user.delete({ where: { id: req.params.id } });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[barbers:delete] error', e);
+    res.status(500).json({ message: 'Erro ao remover barbeiro' });
+  }
+});
+
 // Clients
 app.get('/api/clients', async (_req, res) => {
   const items = await prisma.client.findMany({ orderBy: { createdAt: 'desc' } });
@@ -151,9 +198,14 @@ app.post('/api/appointments', async (req, res) => {
 
     const startOfDay = new Date(target.getFullYear(), target.getMonth(), target.getDate(), 0, 0, 0, 0);
     const endOfDay = new Date(target.getFullYear(), target.getMonth(), target.getDate(), 23, 59, 59, 999);
-    const existing = await prisma.appointment.findFirst({ where: { time, date: { gte: startOfDay, lte: endOfDay } } });
+    // Check conflict per barber (if barberId provided)
+    const conflictWhere: any = { time, date: { gte: startOfDay, lte: endOfDay }, status: { not: 'CANCELLED' } };
+    if (barberId) {
+      conflictWhere.barberId = barberId;
+    }
+    const existing = await prisma.appointment.findFirst({ where: conflictWhere });
     if (existing) {
-      return res.status(409).json({ message: 'Já existe um agendamento para este horário neste dia.' });
+      return res.status(409).json({ message: 'Já existe um agendamento para este barbeiro neste horário.' });
     }
 
     // Multi-serviço (fallback sem pivot enquanto migration não aplicada no client gerado)

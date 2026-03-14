@@ -21,6 +21,11 @@ interface AppointmentWithRelations {
   date: Date;
   time: string;
   status: 'SCHEDULED' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
+  barberId?: string | null;
+  barber?: {
+    id: string;
+    name: string;
+  } | null;
   client: {
     id: string;
     name: string;
@@ -567,6 +572,14 @@ export default function AdminDashboard() {
                               {appointment.service.name}
                             </span>
                           </div>
+                          {appointment.barber && (
+                            <div className="flex items-center space-x-2">
+                              <Users className="h-4 w-4 text-amber-400 flex-shrink-0" />
+                              <span className="text-sm text-amber-300 truncate">
+                                {appointment.barber.name}
+                              </span>
+                            </div>
+                          )}
                         </div>
                       </div>
                       {appointment.status === 'CANCELLED' && (
@@ -646,6 +659,18 @@ export default function AdminDashboard() {
                   </p>
                 </div>
               </div>
+
+              {selectedAppointment.barber && (
+                <div className="flex items-center space-x-2 p-2 bg-white/5 rounded-lg">
+                  <div className="bg-amber-500/20 p-0.5 rounded-md">
+                    <Users className="h-3.5 w-3.5 text-amber-400" />
+                  </div>
+                  <div>
+                    <p className="text-gray-300 text-[11px]">Barbeiro</p>
+                    <p className="text-white font-semibold text-xs">{selectedAppointment.barber.name}</p>
+                  </div>
+                </div>
+              )}
               
               <div className="flex items-center space-x-2 p-2 bg-white/5 rounded-lg">
                 <div className={`w-2.5 h-2.5 rounded-full ${

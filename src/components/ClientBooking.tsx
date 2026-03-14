@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, User, Scissors, CheckCircle, Star, MapPin } from 'lucide-react';
 import { format, addDays, startOfWeek, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { serviceService, clientService, appointmentService } from '../services/api';
-import type { Service } from '../services/api';
+import { serviceService, clientService, appointmentService, barberService } from '../services/api';
+import type { Service, Barber } from '../services/api';
 import toast from 'react-hot-toast';
 import { closedDaysService } from '../services/api';
 import { parseLocalDate, parseFormDate } from '../lib/dateUtils';
@@ -71,14 +71,20 @@ function buildSlotsForDay(day: Date, lunchIntervals: { date: string; start: stri
 
 export default function ClientBooking() {
   const [services, setServices] = useState<Service[]>([]);
+  const [barbers, setBarbers] = useState<Barber[]>([]);
   const [appointments, setAppointments] = useState<any[]>([]);
-  const [formData, setFormData] = useState({
-    clientName: '',
-    clientPhone: '',
-    serviceId: '', // primary (first selected)
-    serviceIds: [] as string[],
-    date: '',
-    time: ''
+  const [formData, setFormData] = useState(() => {
+    const savedName = localStorage.getItem('clientName') || '';
+    const savedPhone = localStorage.getItem('clientPhone') || '';
+    return {
+      clientName: savedName,
+      clientPhone: savedPhone,
+      barberId: '',
+      serviceId: '',
+      serviceIds: [] as string[],
+      date: '',
+      time: ''
+    };
   });
   const [showSuccess, setShowSuccess] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
@@ -88,6 +94,7 @@ export default function ClientBooking() {
 
   useEffect(() => {
     loadServices();
+    loadBarbers();
     loadAppointments();
     loadClosedDays();
     loadLunchIntervals();
@@ -104,6 +111,15 @@ export default function ClientBooking() {
       setServices(data);
     } catch (error) {
       toast.error('Erro ao carregar serviços');
+    }
+  };
+
+  const loadBarbers = async () => {
+    try {
+      const data = await barberService.getAll();
+      setBarbers(data);
+    } catch (error) {
+      // silencioso
     }
   };
 
@@ -168,13 +184,20 @@ export default function ClientBooking() {
       await appointmentService.create({
         clientId: client.id,
         serviceId: formData.serviceId,
+        serviceIds: formData.serviceIds,
         date: localDate,
         time: formData.time,
+        barberId: formData.barberId || undefined,
       });
 
+      // Salvar nome e telefone para próximos agendamentos
+      localStorage.setItem('clientName', formData.clientName);
+      localStorage.setItem('clientPhone', formData.clientPhone);
+
       setFormData({
-        clientName: '',
-        clientPhone: '',
+        clientName: formData.clientName,
+        clientPhone: formData.clientPhone,
+        barberId: '',
         serviceId: '',
         serviceIds: [],
         date: '',
@@ -216,8 +239,9 @@ export default function ClientBooking() {
   const canProceedToStep = (step: number) => {
     switch (step) {
       case 2: return !!formData.clientName && !!formData.clientPhone;
-      case 3: return formData.serviceIds.length > 0; // precisa de pelo menos um
-      case 4: return !!formData.date;
+      case 3: return !!formData.barberId;
+      case 4: return formData.serviceIds.length > 0; // precisa de pelo menos um
+      case 5: return !!formData.date;
       default: return true;
     }
   };
@@ -227,7 +251,7 @@ export default function ClientBooking() {
   const totalDuration = selectedServices.reduce((a, s) => a + s.duration, 0);
   const totalPrice = selectedServices.reduce((a, s) => a + s.price, 0);
 
-  // Horários já ocupados no dia selecionado
+  // Horários já ocupados no dia selecionado (filtrado por barbeiro)
   const reservedTimes = React.useMemo(() => {
     if (!formData.date) return [] as string[];
     const [y, m, d] = formData.date.split('-').map(Number);
@@ -239,10 +263,12 @@ export default function ClientBooking() {
         const sameDay = isSameDay(appointmentDate, sel);
         const status = typeof a.status === 'string' ? a.status : 'SCHEDULED';
         const blocksSlot = status !== 'CANCELLED' && status !== 'NO_SHOW';
-        return sameDay && blocksSlot;
+        // Filter by barber if selected
+        const sameBarber = formData.barberId ? a.barberId === formData.barberId : true;
+        return sameDay && blocksSlot && sameBarber;
       })
       .map(a => a.time);
-  }, [appointments, formData.date]);
+  }, [appointments, formData.date, formData.barberId]);
 
   const availableSlots = React.useMemo(() => {
     if (!formData.date) return [] as string[];
@@ -322,7 +348,7 @@ export default function ClientBooking() {
       {/* Progress Steps */}
       <div className="mb-10">
         <div className="flex items-center justify-center space-x-4 mb-6">
-          {[1, 2, 3, 4].map((step) => (
+          {[1, 2, 3, 4, 5].map((step) => (
             <div key={step} className="flex items-center">
               <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold transition-all duration-300 ${
                 currentStep >= step 
@@ -331,7 +357,7 @@ export default function ClientBooking() {
               }`}>
                 {step}
               </div>
-              {step < 4 && (
+              {step < 5 && (
                 <div className={`w-10 sm:w-16 h-1 mx-2 rounded-full transition-all duration-300 ${
                   currentStep > step ? 'bg-gradient-to-r from-amber-500 to-orange-500' : 'bg-white/20'
                 }`} />
@@ -342,9 +368,10 @@ export default function ClientBooking() {
         <div className="text-center">
           <span className="text-gray-300 font-medium">
             {currentStep === 1 && "Dados Pessoais"}
-            {currentStep === 2 && "Escolha o Serviço"}
-            {currentStep === 3 && "Selecione o Dia"}
-            {currentStep === 4 && "Confirme o Horário"}
+            {currentStep === 2 && "Escolha o Barbeiro"}
+            {currentStep === 3 && "Escolha o Serviço"}
+            {currentStep === 4 && "Selecione o Dia"}
+            {currentStep === 5 && "Confirme o Horário"}
           </span>
         </div>
       </div>
@@ -393,8 +420,64 @@ export default function ClientBooking() {
             </div>
           )}
 
-          {/* Step 2: Services */}
+          {/* Step 2: Barber Selection */}
           {currentStep === 2 && (
+            <div className="space-y-6">
+              <div className="text-center mb-8">
+                <User className="h-12 w-12 text-amber-500 mx-auto mb-4" />
+                <h2 className="text-2xl font-bold text-white mb-2">Escolha o Barbeiro</h2>
+                <p className="text-gray-300">Selecione o profissional de sua preferência</p>
+              </div>
+              
+              {barbers.length === 0 ? (
+                <div className="text-center text-gray-300 bg-white/10 border border-white/20 rounded-xl p-4">
+                  Nenhum barbeiro disponível no momento.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {barbers.map((barber) => (
+                    <label
+                      key={barber.id}
+                      className={`relative cursor-pointer group transition-all duration-300 ${
+                        formData.barberId === barber.id ? 'transform scale-105' : 'hover:transform hover:scale-102'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="barberId"
+                        value={barber.id}
+                        checked={formData.barberId === barber.id}
+                        onChange={(e) => setFormData(prev => ({ ...prev, barberId: e.target.value }))}
+                        className="sr-only"
+                      />
+                      <div className={`p-6 rounded-2xl border-2 transition-all duration-300 ${
+                        formData.barberId === barber.id
+                          ? 'border-amber-500 bg-gradient-to-br from-amber-500/20 to-orange-500/20 shadow-lg shadow-amber-500/25'
+                          : 'border-white/20 bg-white/5 hover:bg-white/10 hover:border-white/30'
+                      }`}>
+                        <div className="flex items-center space-x-4">
+                          <div className={`w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold ${
+                            formData.barberId === barber.id
+                              ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-black'
+                              : 'bg-white/10 text-amber-400'
+                          }`}>
+                            {barber.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <div className="text-white font-bold text-lg">{barber.name}</div>
+                            <div className="text-gray-400 text-sm">Barbeiro</div>
+                          </div>
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Step 3: Services */}
+          {currentStep === 3 && (
             <div className="space-y-6">
               <div className="text-center mb-8">
                 <Scissors className="h-12 w-12 text-amber-500 mx-auto mb-4" />
@@ -464,8 +547,8 @@ export default function ClientBooking() {
             </div>
           )}
 
-          {/* Step 3: Date Selection */}
-          {currentStep === 3 && (
+          {/* Step 4: Date Selection */}
+          {currentStep === 4 && (
             <div className="space-y-6">
               <div className="text-center mb-8">
                 <Calendar className="h-12 w-12 text-amber-500 mx-auto mb-4" />
@@ -522,8 +605,8 @@ export default function ClientBooking() {
             </div>
           )}
 
-          {/* Step 4: Time Selection */}
-          {currentStep === 4 && (
+          {/* Step 5: Time Selection */}
+          {currentStep === 5 && (
             <div className="space-y-6">
               <div className="text-center mb-8">
                 <Clock className="h-12 w-12 text-amber-500 mx-auto mb-4" />
@@ -540,8 +623,16 @@ export default function ClientBooking() {
               {selectedService && (
                 <div className="bg-white/10 rounded-2xl p-6 mb-6 border border-white/20">
                   <h3 className="text-white font-semibold mb-4">Resumo do Agendamento</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
-                    <div className="md:col-span-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 text-sm">
+                    {formData.barberId && (
+                      <div>
+                        <span className="text-gray-400">Barbeiro:</span>
+                        <div className="text-white font-medium">
+                          {barbers.find(b => b.id === formData.barberId)?.name || '-'}
+                        </div>
+                      </div>
+                    )}
+                    <div className="md:col-span-1 lg:col-span-2">
                       <span className="text-gray-400">Serviços:</span>
                       <div className="text-white font-medium">
                         {selectedServices.map(s => s.name).join(', ')}
@@ -551,7 +642,6 @@ export default function ClientBooking() {
                       <span className="text-gray-400">Data:</span>
                       <div className="text-white font-medium">
                         {formData.date && (() => {
-                          // ✅ FIX: Parse YYYY-MM-DD as local date using utility
                           const localDate = parseFormDate(formData.date);
                           return format(localDate, 'dd/MM/yyyy', { locale: ptBR });
                         })()}
@@ -613,7 +703,7 @@ export default function ClientBooking() {
                )}
                
                <div className="ml-auto">
-                 {currentStep < 4 ? (
+                 {currentStep < 5 ? (
                    <button
                      type="button"
                      onClick={() => setCurrentStep(currentStep + 1)}
