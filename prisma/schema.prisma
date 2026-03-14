@@ -12,17 +12,17 @@ datasource db {
 
 model User {
   id        String   @id @default(cuid())
-  email     String   @unique
-  password  String
-  role      String   @default("ADMIN")
+  email     String?  @unique
+  password  String?
   name      String
+  role      String   @default("ADMIN")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Relations
-  appointments Appointment[]
+    // Relations
+    appointments Appointment[]
 
-  @@map("users")
+    @@map("users")
 }
 
 model Client {

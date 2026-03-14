@@ -72,21 +72,16 @@ app.get('/api/barbers', async (_req, res) => {
 
 app.post('/api/barbers', async (req, res) => {
   try {
-    const { name, email, password } = req.body;
-    if (!name || !email || !password) {
-      return res.status(400).json({ message: 'Nome, email e senha são obrigatórios.' });
+    const { name } = req.body;
+    if (!name) {
+      return res.status(400).json({ message: 'Nome do barbeiro é obrigatório.' });
     }
-    const bcrypt = await import('bcryptjs');
-    const hashedPassword = await bcrypt.hash(password, 10);
     const barber = await prisma.user.create({
-      data: { name, email, password: hashedPassword, role: 'BARBER' },
-      select: { id: true, name: true, email: true }
+      data: { name, role: 'BARBER' },
+      select: { id: true, name: true }
     });
     res.json(barber);
   } catch (e: any) {
-    if (e?.code === 'P2002') {
-      return res.status(409).json({ message: 'Email já cadastrado.' });
-    }
     console.error('[barbers:create] error', e);
     res.status(500).json({ message: 'Erro ao criar barbeiro' });
   }

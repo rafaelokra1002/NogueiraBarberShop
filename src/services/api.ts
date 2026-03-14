@@ -20,7 +20,6 @@ export type Service = {
 export type Barber = {
   id: string;
   name: string;
-  email: string;
 };
 
 type Client = {
@@ -103,7 +102,7 @@ let transactionServiceImpl: {
 };
 let barberServiceImpl: {
   getAll(): Promise<Barber[]>;
-  create(data: { name: string; email: string; password: string }): Promise<Barber>;
+  create(data: { name: string }): Promise<Barber>;
   delete(id: string): Promise<{ ok: true }>;
 };
 
@@ -280,7 +279,7 @@ if (isBrowser) {
       if (!res.ok) throw new Error('Erro ao carregar barbeiros');
       return res.json();
     },
-    async create(data: { name: string; email: string; password: string }) {
+    async create(data: { name: string }) {
       const res = await fetch(`${base}/barbers`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -306,11 +305,11 @@ if (isBrowser) {
     async login(email: string, password: string) {
       const { prisma } = await import('../lib/prisma');
       const { comparePassword } = await import('../lib/auth');
-      const user = await prisma.user.findUnique({ where: { email } });
-      if (!user || !(await comparePassword(password, user.password))) {
+      const user = await prisma.user.findFirst({ where: { email } });
+      if (!user || !user.password || !(await comparePassword(password, user.password))) {
         throw new Error('Credenciais inválidas');
       }
-      return { id: user.id, email: user.email, name: user.name, role: user.role };
+      return { id: user.id, email: user.email || '', name: user.name, role: user.role };
     },
   };
 
@@ -465,17 +464,15 @@ if (isBrowser) {
       const { prisma } = await import('../lib/prisma');
       return prisma.user.findMany({
         where: { role: 'BARBER' },
-        select: { id: true, name: true, email: true },
+        select: { id: true, name: true },
         orderBy: { name: 'asc' }
       }) as any;
     },
-    async create(data: { name: string; email: string; password: string }) {
+    async create(data: { name: string }) {
       const { prisma } = await import('../lib/prisma');
-      const bcrypt = await import('bcryptjs');
-      const hashed = await bcrypt.hash(data.password, 10);
       return prisma.user.create({
-        data: { name: data.name, email: data.email, password: hashed, role: 'BARBER' },
-        select: { id: true, name: true, email: true }
+        data: { name: data.name, role: 'BARBER' },
+        select: { id: true, name: true }
       }) as any;
     },
     async delete(id: string) {

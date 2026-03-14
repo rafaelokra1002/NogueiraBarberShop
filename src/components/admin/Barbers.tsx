@@ -7,7 +7,7 @@ import toast from 'react-hot-toast';
 export default function Barbers() {
   const [barbers, setBarbers] = useState<Barber[]>([]);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: '', email: '', password: '' });
+  const [form, setForm] = useState({ name: '' });
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -25,15 +25,15 @@ export default function Barbers() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name || !form.email || !form.password) {
-      toast.error('Preencha todos os campos');
+    if (!form.name) {
+      toast.error('Preencha o nome do barbeiro');
       return;
     }
     setLoading(true);
     try {
-      await barberService.create(form);
+      await barberService.create({ name: form.name });
       toast.success('Barbeiro adicionado!');
-      setForm({ name: '', email: '', password: '' });
+      setForm({ name: '' });
       setShowForm(false);
       loadBarbers();
     } catch (err: any) {
@@ -72,7 +72,7 @@ export default function Barbers() {
 
       {showForm && (
         <form onSubmit={handleCreate} className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1">Nome</label>
               <input
@@ -81,26 +81,6 @@ export default function Barbers() {
                 onChange={e => setForm(prev => ({ ...prev, name: e.target.value }))}
                 className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
                 placeholder="Nome do barbeiro"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">Email</label>
-              <input
-                type="email"
-                value={form.email}
-                onChange={e => setForm(prev => ({ ...prev, email: e.target.value }))}
-                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                placeholder="email@exemplo.com"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">Senha</label>
-              <input
-                type="password"
-                value={form.password}
-                onChange={e => setForm(prev => ({ ...prev, password: e.target.value }))}
-                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                placeholder="Senha de acesso"
               />
             </div>
           </div>
@@ -139,7 +119,7 @@ export default function Barbers() {
                 </div>
                 <div>
                   <div className="text-white font-semibold">{barber.name}</div>
-                  <div className="text-gray-400 text-sm">{barber.email}</div>
+                  <div className="text-gray-400 text-sm">Barbeiro</div>
                 </div>
               </div>
               <button
