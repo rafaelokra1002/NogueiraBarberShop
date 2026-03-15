@@ -347,10 +347,10 @@ export default function ClientBooking() {
 
       {/* Progress Steps */}
       <div className="mb-10">
-        <div className="flex items-center justify-center space-x-4 mb-6">
+        <div className="flex items-center justify-center space-x-1 sm:space-x-4 mb-6 px-2">
           {[1, 2, 3, 4, 5].map((step) => (
             <div key={step} className="flex items-center">
-              <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold transition-all duration-300 ${
+              <div className={`w-7 h-7 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-sm sm:text-base font-bold transition-all duration-300 ${
                 currentStep >= step 
                   ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-black shadow-lg' 
                   : 'bg-white/10 text-gray-400 border border-white/20'
@@ -358,7 +358,7 @@ export default function ClientBooking() {
                 {step}
               </div>
               {step < 5 && (
-                <div className={`w-10 sm:w-16 h-1 mx-2 rounded-full transition-all duration-300 ${
+                <div className={`w-6 sm:w-16 h-1 mx-1 sm:mx-2 rounded-full transition-all duration-300 ${
                   currentStep > step ? 'bg-gradient-to-r from-amber-500 to-orange-500' : 'bg-white/20'
                 }`} />
               )}
