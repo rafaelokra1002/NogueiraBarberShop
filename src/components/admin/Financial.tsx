@@ -19,7 +19,8 @@ export default function Financial() {
   const [expenses, setExpenses] = useState<Transaction[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all');
-  const [periodFilter, setPeriodFilter] = useState<'all' | 'daily' | 'weekly' | 'monthly'>('all');
+  const [periodFilter, setPeriodFilter] = useState<'all' | 'daily' | 'weekly' | 'monthly' | 'byMonth'>('all');
+  const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({
     description: '',
@@ -105,12 +106,19 @@ export default function Financial() {
         start = startOfMonth(now);
         end = endOfMonth(now);
         break;
+      case 'byMonth': {
+        const [y, m] = selectedMonth.split('-').map(Number);
+        const picked = new Date(y, m - 1, 1);
+        start = startOfMonth(picked);
+        end = endOfMonth(picked);
+        break;
+      }
     }
     return expenses.filter(e => {
       const d = new Date(e.date);
       return isWithinInterval(d, { start, end });
     });
-  }, [expenses, periodFilter]);
+  }, [expenses, periodFilter, selectedMonth]);
 
   const filteredExpenses = periodFilteredExpenses.filter(e => 
     filterType === 'all' || e.type === filterType
@@ -129,6 +137,7 @@ export default function Financial() {
   const periodLabel = periodFilter === 'daily' ? 'Hoje'
     : periodFilter === 'weekly' ? 'Esta Semana'
     : periodFilter === 'monthly' ? 'Este Mês'
+    : periodFilter === 'byMonth' ? format(new Date(selectedMonth + '-01'), 'MMMM yyyy', { locale: ptBR }).replace(/^\w/, c => c.toUpperCase())
     : 'Geral';
 
   const exportPDF = () => {
@@ -294,12 +303,13 @@ export default function Financial() {
           <Calendar className="h-5 w-5 text-amber-400" />
           <h3 className="text-white font-semibold text-sm sm:text-base">Período do Relatório</h3>
         </div>
-        <div className="flex items-center space-x-2 sm:space-x-3 overflow-x-auto">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           {[
             { key: 'all' as const, label: 'Geral' },
             { key: 'daily' as const, label: 'Diário' },
             { key: 'weekly' as const, label: 'Semanal' },
             { key: 'monthly' as const, label: 'Mensal' },
+            { key: 'byMonth' as const, label: 'Por Mês' },
           ].map(({ key, label }) => (
             <button
               key={key}
@@ -313,6 +323,14 @@ export default function Financial() {
               {label}
             </button>
           ))}
+          {periodFilter === 'byMonth' && (
+            <input
+              type="month"
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="px-3 py-2 bg-white/10 border border-amber-500/50 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+            />
+          )}
         </div>
       </div>
 
