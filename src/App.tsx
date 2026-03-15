@@ -3,7 +3,6 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { useAuthStore } from './store/authStore';
 import AdminLogin from './components/AdminLogin';
-import AdminDashboard from './components/AdminDashboard';
 import ClientBooking from './components/ClientBooking';
 import { Scissors } from 'lucide-react';
 
@@ -16,6 +15,7 @@ import Services from './components/admin/Services';
 import Schedule from './components/admin/Schedule';
 import Appointments from './components/admin/Appointments';
 import Barbers from './components/admin/Barbers';
+import Settings from './components/admin/Settings';
 
 function ProtectedRoute({ children }: { children: React.ReactElement }) {
   const { isAuthenticated } = useAuthStore();
@@ -198,7 +198,7 @@ function App() {
           element={
             <ProtectedRoute>
               <AdminLayout>
-                <AdminDashboard />
+                <Settings />
               </AdminLayout>
             </ProtectedRoute>
           }

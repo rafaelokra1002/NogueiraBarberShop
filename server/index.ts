@@ -40,6 +40,49 @@ app.get('/api/services', async (_req, res) => {
   res.json(items);
 });
 
+// Auth
+app.post('/api/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const bcrypt = await import('bcryptjs');
+    const compareFn = bcrypt.default?.compare || bcrypt.compare;
+    const user = await prisma.user.findFirst({ where: { email } });
+    if (!user || !user.password || !(await compareFn(password, user.password))) {
+      return res.status(401).json({ error: 'Credenciais inv\u00e1lidas' });
+    }
+    res.json({ id: user.id, email: user.email || '', name: user.name, role: user.role });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/change-password', async (req, res) => {
+  try {
+    const { userId, currentPassword, newPassword } = req.body;
+    if (!userId || !currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Dados incompletos' });
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'A nova senha deve ter pelo menos 6 caracteres' });
+    }
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user || !user.password) {
+      return res.status(404).json({ error: 'Usu\u00e1rio n\u00e3o encontrado' });
+    }
+    const bcrypt = await import('bcryptjs');
+    const compareFn = bcrypt.default?.compare || bcrypt.compare;
+    const hashFn = bcrypt.default?.hash || bcrypt.hash;
+    if (!(await compareFn(currentPassword, user.password))) {
+      return res.status(401).json({ error: 'Senha atual incorreta' });
+    }
+    const hashed = await hashFn(newPassword, 10);
+    await prisma.user.update({ where: { id: userId }, data: { password: hashed } });
+    res.json({ ok: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.post('/api/services', async (req, res) => {
   const s = await prisma.service.create({ data: { ...req.body, isActive: true } });
   res.json(s);

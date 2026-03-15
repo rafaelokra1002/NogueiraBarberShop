@@ -112,11 +112,16 @@ if (isBrowser) {
 
   authServiceImpl = {
     async login(email: string, password: string) {
-      // Demo-only: validar credenciais estáticas no client
-      if (email === 'admin@barberpro.com' && password === 'admin123') {
-        return { id: 'admin-1', email, name: 'Admin', role: 'ADMIN' };
+      const res = await fetch(`${base}/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Credenciais inv\u00e1lidas' }));
+        throw new Error(err.error || 'Credenciais inv\u00e1lidas');
       }
-      throw new Error('Credenciais inválidas');
+      return res.json();
     },
   };
 
