@@ -110,7 +110,7 @@ app.post('/api/clients', async (req, res) => {
 
 // Appointments
 app.get('/api/appointments', async (_req, res) => {
-  const items = await prisma.appointment.findMany({ include: { client: true, service: true, barber: true }, orderBy: { date: 'asc' } });
+  const items = await prisma.appointment.findMany({ include: { client: true, service: true, barber: true, services: { include: { service: true } } }, orderBy: { date: 'asc' } });
   res.json(items);
 });
 

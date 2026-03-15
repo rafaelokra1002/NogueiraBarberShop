@@ -48,17 +48,22 @@ export default function Dashboard() {
         (apt: any) => apt.status === 'COMPLETED'
       ).length;
 
-      // Calcular receita do mês (simulado - você pode ajustar)
+      // Calcular receita do mês (agendamentos não cancelados)
       const monthRevenue = appointments
         .filter((apt: any) => {
           const aptDate = new Date(apt.date);
           return (
             aptDate.getMonth() === today.getMonth() &&
             aptDate.getFullYear() === today.getFullYear() &&
-            apt.status === 'COMPLETED'
+            apt.status !== 'CANCELLED'
           );
         })
-        .reduce((acc: number, apt: any) => acc + (apt.service?.price || 0), 0);
+        .reduce((acc: number, apt: any) => {
+          if (apt.services && apt.services.length > 0) {
+            return acc + apt.services.reduce((s: number, as: any) => s + (as.service?.price || 0), 0);
+          }
+          return acc + (apt.service?.price || 0);
+        }, 0);
 
       setStats({
         totalClients: clients.length,

@@ -12,6 +12,8 @@ import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, end
 import { ptBR } from 'date-fns/locale';
 import toast from 'react-hot-toast';
 import { transactionService, type Transaction } from '../../services/api';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export default function Financial() {
   const [expenses, setExpenses] = useState<Transaction[]>([]);
@@ -128,6 +130,150 @@ export default function Financial() {
     : periodFilter === 'weekly' ? 'Esta Semana'
     : periodFilter === 'monthly' ? 'Este Mês'
     : 'Geral';
+
+  const exportPDF = () => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const now = new Date();
+
+    // Header background
+    doc.setFillColor(30, 30, 30);
+    doc.rect(0, 0, pageWidth, 45, 'F');
+
+    // Title
+    doc.setFontSize(22);
+    doc.setTextColor(245, 158, 11);
+    doc.text('Nogueira Barber Shop', pageWidth / 2, 18, { align: 'center' });
+
+    // Subtitle
+    doc.setFontSize(12);
+    doc.setTextColor(200, 200, 200);
+    doc.text(`Relatório Financeiro - ${periodLabel}`, pageWidth / 2, 28, { align: 'center' });
+
+    // Date
+    doc.setFontSize(9);
+    doc.setTextColor(160, 160, 160);
+    doc.text(`Gerado em: ${format(now, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`, pageWidth / 2, 37, { align: 'center' });
+
+    // Summary section
+    let y = 55;
+    doc.setFontSize(14);
+    doc.setTextColor(40, 40, 40);
+    doc.text('Resumo', 14, y);
+    y += 3;
+    doc.setDrawColor(245, 158, 11);
+    doc.setLineWidth(0.5);
+    doc.line(14, y, pageWidth - 14, y);
+    y += 10;
+
+    // Summary cards
+    const cardWidth = (pageWidth - 42) / 3;
+
+    // Receitas card
+    doc.setFillColor(220, 252, 231);
+    doc.roundedRect(14, y, cardWidth, 25, 3, 3, 'F');
+    doc.setFontSize(9);
+    doc.setTextColor(22, 101, 52);
+    doc.text('RECEITAS', 14 + cardWidth / 2, y + 9, { align: 'center' });
+    doc.setFontSize(14);
+    doc.text(`R$ ${totalIncome.toFixed(2)}`, 14 + cardWidth / 2, y + 19, { align: 'center' });
+
+    // Despesas card
+    const cardX2 = 14 + cardWidth + 7;
+    doc.setFillColor(254, 226, 226);
+    doc.roundedRect(cardX2, y, cardWidth, 25, 3, 3, 'F');
+    doc.setFontSize(9);
+    doc.setTextColor(153, 27, 27);
+    doc.text('DESPESAS', cardX2 + cardWidth / 2, y + 9, { align: 'center' });
+    doc.setFontSize(14);
+    doc.text(`R$ ${totalExpense.toFixed(2)}`, cardX2 + cardWidth / 2, y + 19, { align: 'center' });
+
+    // Saldo card
+    const cardX3 = cardX2 + cardWidth + 7;
+    doc.setFillColor(balance >= 0 ? 219 : 254, balance >= 0 ? 234 : 215, balance >= 0 ? 254 : 170);
+    doc.roundedRect(cardX3, y, cardWidth, 25, 3, 3, 'F');
+    doc.setFontSize(9);
+    doc.setTextColor(balance >= 0 ? 30 : 154, balance >= 0 ? 64 : 52, balance >= 0 ? 175 : 18);
+    doc.text(balance >= 0 ? 'SALDO' : 'DÉFICIT', cardX3 + cardWidth / 2, y + 9, { align: 'center' });
+    doc.setFontSize(14);
+    doc.text(`R$ ${Math.abs(balance).toFixed(2)}`, cardX3 + cardWidth / 2, y + 19, { align: 'center' });
+
+    y += 38;
+
+    // Transactions table
+    doc.setFontSize(14);
+    doc.setTextColor(40, 40, 40);
+    doc.text('Lançamentos', 14, y);
+    y += 3;
+    doc.setDrawColor(245, 158, 11);
+    doc.line(14, y, pageWidth - 14, y);
+    y += 5;
+
+    const tableData = filteredExpenses.map(e => [
+      format(new Date(e.date), 'dd/MM/yyyy', { locale: ptBR }),
+      e.description,
+      e.category,
+      e.type === 'income' ? 'Receita' : 'Despesa',
+      `${e.type === 'income' ? '+' : '-'} R$ ${e.amount.toFixed(2)}`
+    ]);
+
+    autoTable(doc, {
+      startY: y,
+      head: [['Data', 'Descrição', 'Categoria', 'Tipo', 'Valor']],
+      body: tableData,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [30, 30, 30],
+        textColor: [245, 158, 11],
+        fontStyle: 'bold',
+        fontSize: 9,
+      },
+      bodyStyles: {
+        fontSize: 8,
+        textColor: [40, 40, 40],
+      },
+      alternateRowStyles: {
+        fillColor: [248, 248, 248],
+      },
+      columnStyles: {
+        0: { cellWidth: 25 },
+        3: { cellWidth: 22 },
+        4: { halign: 'right', cellWidth: 30 },
+      },
+      margin: { left: 14, right: 14 },
+      didParseCell: (data) => {
+        if (data.section === 'body' && data.column.index === 4) {
+          const val = String(data.cell.raw);
+          if (val.startsWith('+')) {
+            data.cell.styles.textColor = [22, 101, 52];
+            data.cell.styles.fontStyle = 'bold';
+          } else {
+            data.cell.styles.textColor = [153, 27, 27];
+            data.cell.styles.fontStyle = 'bold';
+          }
+        }
+        if (data.section === 'body' && data.column.index === 3) {
+          const val = String(data.cell.raw);
+          data.cell.styles.textColor = val === 'Receita' ? [22, 101, 52] : [153, 27, 27];
+        }
+      },
+    });
+
+    // Footer
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      const pageH = doc.internal.pageSize.getHeight();
+      doc.setFontSize(8);
+      doc.setTextColor(160, 160, 160);
+      doc.text(`Nogueira Barber Shop - Relatório Financeiro`, 14, pageH - 10);
+      doc.text(`Página ${i} de ${pageCount}`, pageWidth - 14, pageH - 10, { align: 'right' });
+    }
+
+    const fileName = `relatorio_financeiro_${format(now, 'yyyy-MM-dd_HHmm')}.pdf`;
+    doc.save(fileName);
+    toast.success('PDF exportado com sucesso!');
+  };
 
   if (loading) {
     return (
@@ -247,9 +393,12 @@ export default function Financial() {
         </div>
 
         <div className="flex items-center space-x-2 sm:space-x-3">
-          <button className="flex items-center justify-center space-x-2 px-3 sm:px-4 py-2 bg-white/5 hover:bg-white/10 text-white rounded-xl transition-all duration-200 flex-1 sm:flex-none">
+          <button
+            onClick={exportPDF}
+            className="flex items-center justify-center space-x-2 px-3 sm:px-4 py-2 bg-white/5 hover:bg-white/10 text-white rounded-xl transition-all duration-200 flex-1 sm:flex-none"
+          >
             <Download className="h-4 w-4" />
-            <span className="text-sm">Exportar</span>
+            <span className="text-sm">Exportar PDF</span>
           </button>
           <button
             onClick={() => setShowAddModal(true)}
