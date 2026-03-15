@@ -1,13 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   DollarSign,
   TrendingUp,
   TrendingDown,
   Plus,
   Trash2,
-  Download
+  Download,
+  Calendar
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import toast from 'react-hot-toast';
 import { transactionService, type Transaction } from '../../services/api';
@@ -16,6 +17,7 @@ export default function Financial() {
   const [expenses, setExpenses] = useState<Transaction[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all');
+  const [periodFilter, setPeriodFilter] = useState<'all' | 'daily' | 'weekly' | 'monthly'>('all');
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({
     description: '',
@@ -84,19 +86,48 @@ export default function Financial() {
     }
   };
 
-  const filteredExpenses = expenses.filter(e => 
+  const periodFilteredExpenses = useMemo(() => {
+    if (periodFilter === 'all') return expenses;
+    const now = new Date();
+    let start: Date, end: Date;
+    switch (periodFilter) {
+      case 'daily':
+        start = startOfDay(now);
+        end = endOfDay(now);
+        break;
+      case 'weekly':
+        start = startOfWeek(now, { weekStartsOn: 1 });
+        end = endOfWeek(now, { weekStartsOn: 1 });
+        break;
+      case 'monthly':
+        start = startOfMonth(now);
+        end = endOfMonth(now);
+        break;
+    }
+    return expenses.filter(e => {
+      const d = new Date(e.date);
+      return isWithinInterval(d, { start, end });
+    });
+  }, [expenses, periodFilter]);
+
+  const filteredExpenses = periodFilteredExpenses.filter(e => 
     filterType === 'all' || e.type === filterType
   );
 
-  const totalIncome = expenses
+  const totalIncome = periodFilteredExpenses
     .filter(e => e.type === 'income')
     .reduce((acc, e) => acc + e.amount, 0);
 
-  const totalExpense = expenses
+  const totalExpense = periodFilteredExpenses
     .filter(e => e.type === 'expense')
     .reduce((acc, e) => acc + e.amount, 0);
 
   const balance = totalIncome - totalExpense;
+
+  const periodLabel = periodFilter === 'daily' ? 'Hoje'
+    : periodFilter === 'weekly' ? 'Esta Semana'
+    : periodFilter === 'monthly' ? 'Este Mês'
+    : 'Geral';
 
   if (loading) {
     return (
@@ -111,6 +142,34 @@ export default function Financial() {
 
   return (
     <div className="space-y-6 sm:space-y-8">
+      {/* Period Filter */}
+      <div className="bg-white/5 backdrop-blur-xl rounded-xl sm:rounded-2xl p-4 border border-white/10">
+        <div className="flex items-center space-x-3 mb-3">
+          <Calendar className="h-5 w-5 text-amber-400" />
+          <h3 className="text-white font-semibold text-sm sm:text-base">Período do Relatório</h3>
+        </div>
+        <div className="flex items-center space-x-2 sm:space-x-3 overflow-x-auto">
+          {[
+            { key: 'all' as const, label: 'Geral' },
+            { key: 'daily' as const, label: 'Diário' },
+            { key: 'weekly' as const, label: 'Semanal' },
+            { key: 'monthly' as const, label: 'Mensal' },
+          ].map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setPeriodFilter(key)}
+              className={`px-3 sm:px-4 py-2 rounded-xl transition-all duration-200 whitespace-nowrap text-sm ${
+                periodFilter === key
+                  ? 'bg-amber-500 text-black font-semibold'
+                  : 'bg-white/5 text-gray-300 hover:bg-white/10'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         <div className="bg-gradient-to-br from-green-500/20 to-green-600/20 backdrop-blur-xl rounded-xl sm:rounded-2xl p-4 sm:p-6 border border-green-500/30">
@@ -120,7 +179,7 @@ export default function Financial() {
             </div>
             <div className="text-right">
               <p className="text-2xl sm:text-3xl font-bold text-white">R$ {totalIncome.toFixed(2)}</p>
-              <p className="text-green-300 text-xs sm:text-sm font-medium">Receitas</p>
+              <p className="text-green-300 text-xs sm:text-sm font-medium">Receitas ({periodLabel})</p>
             </div>
           </div>
         </div>
@@ -132,7 +191,7 @@ export default function Financial() {
             </div>
             <div className="text-right">
               <p className="text-2xl sm:text-3xl font-bold text-white">R$ {totalExpense.toFixed(2)}</p>
-              <p className="text-red-300 text-xs sm:text-sm font-medium">Despesas</p>
+              <p className="text-red-300 text-xs sm:text-sm font-medium">Despesas ({periodLabel})</p>
             </div>
           </div>
         </div>
@@ -145,7 +204,7 @@ export default function Financial() {
             <div className="text-right">
               <p className="text-2xl sm:text-3xl font-bold text-white">R$ {Math.abs(balance).toFixed(2)}</p>
               <p className={`${balance >= 0 ? 'text-blue-300' : 'text-orange-300'} text-xs sm:text-sm font-medium`}>
-                {balance >= 0 ? 'Saldo' : 'Déficit'}
+                {balance >= 0 ? 'Saldo' : 'Déficit'} ({periodLabel})
               </p>
             </div>
           </div>
